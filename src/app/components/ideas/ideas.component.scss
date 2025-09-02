@@ -1,0 +1,92 @@
+.ask {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+.hdr {
+  display: grid;
+  gap: 8px;
+
+  h2 { margin: 0 0 6px 0; }
+
+  textarea {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    resize: vertical;
+  }
+}
+
+.filters {
+  margin-top: 12px;
+  display: grid;
+  gap: 10px;
+
+  .row {
+    display: grid;
+    grid-template-columns: 120px 1fr;
+    align-items: center;
+    gap: 10px;
+
+    label {
+      font-weight: 600;
+      color: #444;
+    }
+
+    .btns button,
+    .chips button {
+      border: 1px solid #ddd;
+      background: #fff;
+      border-radius: 999px;
+      padding: 6px 12px;
+      margin-right: 6px;
+      cursor: pointer;
+
+      &.active {
+        background: #111;
+        color: #fff;
+        border-color: #111;
+      }
+    }
+
+    .star {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+
+      input {
+        padding: 8px 10px;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+      }
+
+      .set {
+        border: 1px solid #111;
+        background: #111;
+        color: #fff;
+        border-radius: 8px;
+        padding: 8px 12px;
+        cursor: pointer;
+      }
+
+      .picked {
+        grid-column: 1 / -1;
+        background: #f4f4f4;
+        border-radius: 999px;
+        padding: 6px 10px;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        .clear {
+          border: none;
+          background: transparent;
+          cursor: pointer;
+          font-size: 16px;
+          line-height: 1;
+        }
+      }
+    }
+  }
+}

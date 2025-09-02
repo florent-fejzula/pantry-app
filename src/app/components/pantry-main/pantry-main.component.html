@@ -1,0 +1,68 @@
+<div class="pantry">
+  <header class="bar">
+    <h2>Pantry</h2>
+
+    <div class="search">
+      <input
+        type="text"
+        [formControl]="search"
+        placeholder="Search pantry…"
+        aria-label="Search pantry"
+      />
+    </div>
+
+    <div class="quick-add">
+      <input
+        type="text"
+        [formControl]="newName"
+        placeholder="Add item (press Enter)…"
+        aria-label="New item name"
+        (keyup.enter)="addQuick()"
+      />
+      <div class="cats">
+        <button
+          *ngFor="let c of categories"
+          type="button"
+          class="chip"
+          [class.active]="c === selectedCategory()"
+          (click)="selectCategory(c)"
+        >
+          {{ c }}
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <section class="groups" *ngIf="(filteredGrouped$ | async) as groups">
+    <div *ngIf="!groups.length" class="empty">No items yet. Add something above ↑</div>
+
+    <div class="group" *ngFor="let g of groups">
+      <h3 class="group-title">{{ g.category }}</h3>
+
+      <ul class="list">
+        <li class="row" *ngFor="let it of g.items; trackBy: trackById">
+          <!-- View mode -->
+          <ng-container *ngIf="editingId() !== it.id; else editRow">
+            <span class="name" (click)="startEdit(it)" title="Click to edit">{{ it.name }}</span>
+            <button class="x" title="Delete" (click)="remove(it.id)">×</button>
+          </ng-container>
+
+          <!-- Edit mode -->
+          <ng-template #editRow>
+            <input
+              class="edit-name"
+              type="text"
+              [formControl]="editName"
+              (keyup.enter)="saveEdit(it.id)"
+            />
+            <select class="edit-cat" [formControl]="editCategory">
+              <option *ngFor="let c of categories" [value]="c">{{ c }}</option>
+            </select>
+            <button class="btn save" (click)="saveEdit(it.id)">Save</button>
+            <button class="btn cancel" (click)="cancelEdit()">Cancel</button>
+          </ng-template>
+        </li>
+      </ul>
+    </div>
+  </section>
+</div>

@@ -1,0 +1,64 @@
+<div class="ask">
+  <header class="hdr">
+    <h2>What do you feel like?</h2>
+    <textarea
+      [formControl]="prompt"
+      rows="3"
+      placeholder='e.g. "light dinner, no frying, Turkish/Levant vibe."'
+      aria-label="Prompt"
+    ></textarea>
+  </header>
+
+  <section class="filters">
+    <div class="row">
+      <label>Max missing</label>
+      <div class="btns">
+        <button [class.active]="maxMissing()===0" (click)="maxMissing.set(0)">0</button>
+        <button [class.active]="maxMissing()===1" (click)="maxMissing.set(1)">1</button>
+        <button [class.active]="maxMissing()===2" (click)="maxMissing.set(2)">2</button>
+      </div>
+    </div>
+
+    <div class="row">
+      <label>Time</label>
+      <div class="btns">
+        <button *ngFor="let t of [10,15,20,30,45,60]"
+                [class.active]="time()===t"
+                (click)="time.set(t)">{{t}}′</button>
+        <button [class.active]="time()===null" (click)="time.set(null)">Any</button>
+      </div>
+    </div>
+
+    <div class="row">
+      <label>Cuisines</label>
+      <div class="chips">
+        <button *ngFor="let c of ['Turkish','Levant','Italian','Balkan','Mexican','Indian','East Asian']"
+                [class.active]="cuisines().includes(c)"
+                (click)="toggleCuisine(c)">{{c}}</button>
+      </div>
+    </div>
+
+    <div class="row">
+      <label>Star Ingredient</label>
+      <div class="star">
+        <input
+          type="text"
+          list="pantry-suggestions"
+          [formControl]="starInput"
+          placeholder="type to select (e.g. bulgur, chicken, yogurt)…"
+          (keyup.enter)="setStarFromInput()"
+        />
+        <datalist id="pantry-suggestions">
+          <option *ngFor="let n of (pantryNames$ | async)" [value]="n"></option>
+        </datalist>
+
+        <button class="set" (click)="setStarFromInput()">Set</button>
+
+        <span *ngIf="starIngredient()" class="picked">
+          {{ starIngredient() }}
+          <button class="clear" title="Remove" (click)="clearStar()">×</button>
+        </span>
+      </div>
+    </div>
+  </section>
+</div>
