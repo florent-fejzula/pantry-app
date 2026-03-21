@@ -3,13 +3,12 @@
   margin: 0 auto;
   padding: 16px;
 }
-
 .hdr {
   display: grid;
   gap: 8px;
-
-  h2 { margin: 0 0 6px 0; }
-
+  h2 {
+    margin: 0 0 6px 0;
+  }
   textarea {
     width: 100%;
     padding: 10px 12px;
@@ -18,23 +17,19 @@
     resize: vertical;
   }
 }
-
 .filters {
   margin-top: 12px;
   display: grid;
   gap: 10px;
-
   .row {
     display: grid;
     grid-template-columns: 120px 1fr;
     align-items: center;
     gap: 10px;
-
     label {
       font-weight: 600;
       color: #444;
     }
-
     .btns button,
     .chips button {
       border: 1px solid #ddd;
@@ -43,25 +38,21 @@
       padding: 6px 12px;
       margin-right: 6px;
       cursor: pointer;
-
       &.active {
         background: #111;
         color: #fff;
         border-color: #111;
       }
     }
-
     .star {
       display: grid;
       grid-template-columns: 1fr auto;
       gap: 8px;
-
       input {
         padding: 8px 10px;
         border: 1px solid #ddd;
         border-radius: 8px;
       }
-
       .set {
         border: 1px solid #111;
         background: #111;
@@ -70,7 +61,6 @@
         padding: 8px 12px;
         cursor: pointer;
       }
-
       .picked {
         grid-column: 1 / -1;
         background: #f4f4f4;
@@ -89,4 +79,12 @@
       }
     }
   }
+}
+.generate {
+  border: 1px solid #111;
+  background: #111;
+  color: #fff;
+  border-radius: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
 }

@@ -1,0 +1,46 @@
+.results {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 16px;
+}
+.bucket {
+  margin-top: 16px;
+}
+.bucket h3 {
+  margin: 0 0 6px 0;
+  text-transform: uppercase;
+  font-size: 13px;
+  color: #444;
+}
+ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+li {
+  border: 1px solid #eee;
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  background: #fff;
+}
+.title {
+  font-weight: 700;
+}
+.meta {
+  color: #666;
+  font-size: 12px;
+  margin-top: 2px;
+}
+.desc {
+  background: #fafafa;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  padding: 8px;
+  white-space: pre-wrap;
+  margin-top: 8px;
+}
+.empty {
+  color: #666;
+  padding: 16px 0;
+}

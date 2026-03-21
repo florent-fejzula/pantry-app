@@ -8,5 +8,6 @@ export const environment = {
     messagingSenderId: '8205528591',
     appId: '1:8205528591:web:353022756fbe88c230bd7a',
     measurementId: 'G-CB1Z2FPHPV',
-  }
+  },
+  llmEndpoint: 'https://europe-west1-pantry-app-8af10.cloudfunctions.net/generateIdeas'
 };

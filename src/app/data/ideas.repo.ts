@@ -22,6 +22,20 @@ import { IdeaIngredient } from '../models/idea-ingredient.model';
 
 type ReadinessTier = 'READY' | 'N1' | 'N2';
 
+/** Recursively remove all `undefined` keys so Firestore never sees them. */
+function dropUndefinedDeep<T>(obj: T): T {
+  if (Array.isArray(obj)) return obj.map(dropUndefinedDeep) as unknown as T;
+  if (obj && typeof obj === 'object') {
+    const out: any = {};
+    for (const [k, v] of Object.entries(obj as any)) {
+      if (v === undefined) continue;
+      out[k] = dropUndefinedDeep(v as any);
+    }
+    return out;
+  }
+  return obj;
+}
+
 @Injectable({ providedIn: 'root' })
 export class IdeasRepo {
   private fs = inject(Firestore);
@@ -51,8 +65,6 @@ export class IdeasRepo {
   /**
    * Upsert idea + write/replace ingredients in a single batch.
    * Pass `ideaId = null` to create a new idea document.
-   * If you want to fully replace ingredients, pass the full current list you want to keep.
-   * (To hard-replace, first read old ingredient IDs and batch.delete them, then write new set.)
    */
   async upsertIdeaWithIngredients(
     ideaId: string | null,
@@ -70,26 +82,23 @@ export class IdeasRepo {
 
     const batch = writeBatch(this.fs);
 
-    // Upsert idea
-    batch.set(
-      ideaRef,
-      {
-        ...idea,
-        readinessTier: tier,
-        missingCount: Math.min(missing, 2),
-        createdAt: (idea as any).createdAt ?? now,
-        updatedAt: now
-      },
-      { merge: true }
-    );
+    // Upsert idea (sanitize to avoid any `undefined`)
+    const cleanIdea = dropUndefinedDeep({
+      ...idea,
+      readinessTier: tier,
+      missingCount: Math.min(missing, 2),
+      createdAt: (idea as any).createdAt ?? now,
+      updatedAt: now
+    });
+    batch.set(ideaRef, cleanIdea, { merge: true });
 
-    // (Optional) If you want a true replace, first fetch and delete existing ingredients here.
+    // Ingredients (sanitize each)
     const ingColPath = `${ideaRef.path}/ingredients`;
     for (const ing of ingredients) {
       const ingRef = ing.id
         ? doc(this.fs, `${ingColPath}/${ing.id}`)
         : doc(collection(this.fs, ingColPath));
-      batch.set(ingRef, ing, { merge: true });
+      batch.set(ingRef, dropUndefinedDeep(ing), { merge: true });
     }
 
     await batch.commit();
@@ -99,7 +108,6 @@ export class IdeasRepo {
   async deleteIdea(ideaId: string, { deleteIngredients = false } = {}): Promise<void> {
     const ideaRef = doc(this.fs, `ideas/${ideaId}`);
     if (deleteIngredients) {
-      // Delete subcollection docs (simple paged delete)
       const ingRef = collection(this.fs, `ideas/${ideaId}/ingredients`);
       const snap = await getDocs(query(ingRef, limit(300)) as any);
       if (!snap.empty) {

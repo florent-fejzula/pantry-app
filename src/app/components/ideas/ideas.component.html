@@ -61,4 +61,13 @@
       </div>
     </div>
   </section>
+
+  <section style="margin-top:12px;display:flex;gap:8px;align-items:center">
+    <button class="generate" (click)="generate()" [disabled]="loading()">Generate</button>
+    <span *ngIf="loading()">Generating…</span>
+    <span *ngIf="error()" style="color:#c33">{{ error() }}</span>
+  </section>
 </div>
+
+<!-- Child results, same page -->
+<app-results id="results" [ideas]="(ideas$ | async) ?? []" [generatedOnce]="generatedOnce()"></app-results>

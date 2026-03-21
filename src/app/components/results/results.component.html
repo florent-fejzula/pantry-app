@@ -1,0 +1,40 @@
+<section id="results" class="results">
+  <h2>Suggestions</h2>
+
+  <div *ngIf="!ideas.length && generatedOnce" class="empty">
+    No ideas matched your constraints. Try increasing “Max missing”, clearing time/cuisines, or removing the star ingredient.
+  </div>
+
+  <section class="bucket" *ngIf="bucket(ideas,'READY').length">
+    <h3>Ready now</h3>
+    <ul>
+      <li *ngFor="let i of bucket(ideas,'READY'); trackBy: trackById">
+        <div class="title">{{ i.title }}</div>
+        <div class="meta">Score: {{ i.totalScore | number:'1.2-2' }}</div>
+        <pre class="desc" *ngIf="i.description">{{ i.description }}</pre>
+      </li>
+    </ul>
+  </section>
+
+  <section class="bucket" *ngIf="bucket(ideas,'N1').length">
+    <h3>Missing 1</h3>
+    <ul>
+      <li *ngFor="let i of bucket(ideas,'N1'); trackBy: trackById">
+        <div class="title">{{ i.title }}</div>
+        <div class="meta">Score: {{ i.totalScore | number:'1.2-2' }}</div>
+        <pre class="desc" *ngIf="i.description">{{ i.description }}</pre>
+      </li>
+    </ul>
+  </section>
+
+  <section class="bucket" *ngIf="bucket(ideas,'N2').length">
+    <h3>Missing 2</h3>
+    <ul>
+      <li *ngFor="let i of bucket(ideas,'N2'); trackBy: trackById">
+        <div class="title">{{ i.title }}</div>
+        <div class="meta">Score: {{ i.totalScore | number:'1.2-2' }}</div>
+        <pre class="desc" *ngIf="i.description">{{ i.description }}</pre>
+      </li>
+    </ul>
+  </section>
+</section>
