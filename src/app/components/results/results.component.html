@@ -1,39 +1,89 @@
 <section id="results" class="results">
-  <h2>Suggestions</h2>
-
-  <div *ngIf="!ideas.length && generatedOnce" class="empty">
-    No ideas matched your constraints. Try increasing “Max missing”, clearing time/cuisines, or removing the star ingredient.
+  <div class="results-header">
+    <h2 class="results-title">Suggestions</h2>
   </div>
 
-  <section class="bucket" *ngIf="bucket(ideas,'READY').length">
-    <h3>Ready now</h3>
-    <ul>
-      <li *ngFor="let i of bucket(ideas,'READY'); trackBy: trackById">
-        <div class="title">{{ i.title }}</div>
-        <div class="meta">Score: {{ i.totalScore | number:'1.2-2' }}</div>
-        <pre class="desc" *ngIf="i.description">{{ i.description }}</pre>
+  <div *ngIf="!ideas.length && generatedOnce" class="empty-card">
+    <p class="empty-text">
+      No ideas matched your constraints. Try increasing Max missing, clearing
+      time or cuisines, or removing the star ingredient.
+    </p>
+  </div>
+
+  <section class="bucket" *ngIf="bucket(ideas, 'READY').length">
+    <div class="bucket-header">
+      <h3 class="bucket-title">Ready now</h3>
+      <span class="bucket-count">{{ bucket(ideas, "READY").length }}</span>
+    </div>
+
+    <ul class="idea-list">
+      <li
+        class="idea-card"
+        *ngFor="let i of bucket(ideas, 'READY'); trackBy: trackById"
+      >
+        <div class="idea-top">
+          <div class="idea-title-wrap">
+            <div class="idea-title">{{ i.title }}</div>
+            <div class="idea-score">
+              Score: {{ i.totalScore | number: "1.2-2" }}
+            </div>
+          </div>
+          <span class="idea-badge ready">Ready</span>
+        </div>
+
+        <pre class="idea-desc" *ngIf="i.description">{{ i.description }}</pre>
       </li>
     </ul>
   </section>
 
-  <section class="bucket" *ngIf="bucket(ideas,'N1').length">
-    <h3>Missing 1</h3>
-    <ul>
-      <li *ngFor="let i of bucket(ideas,'N1'); trackBy: trackById">
-        <div class="title">{{ i.title }}</div>
-        <div class="meta">Score: {{ i.totalScore | number:'1.2-2' }}</div>
-        <pre class="desc" *ngIf="i.description">{{ i.description }}</pre>
+  <section class="bucket" *ngIf="bucket(ideas, 'N1').length">
+    <div class="bucket-header">
+      <h3 class="bucket-title">Missing 1</h3>
+      <span class="bucket-count">{{ bucket(ideas, "N1").length }}</span>
+    </div>
+
+    <ul class="idea-list">
+      <li
+        class="idea-card"
+        *ngFor="let i of bucket(ideas, 'N1'); trackBy: trackById"
+      >
+        <div class="idea-top">
+          <div class="idea-title-wrap">
+            <div class="idea-title">{{ i.title }}</div>
+            <div class="idea-score">
+              Score: {{ i.totalScore | number: "1.2-2" }}
+            </div>
+          </div>
+          <span class="idea-badge missing">+1</span>
+        </div>
+
+        <pre class="idea-desc" *ngIf="i.description">{{ i.description }}</pre>
       </li>
     </ul>
   </section>
 
-  <section class="bucket" *ngIf="bucket(ideas,'N2').length">
-    <h3>Missing 2</h3>
-    <ul>
-      <li *ngFor="let i of bucket(ideas,'N2'); trackBy: trackById">
-        <div class="title">{{ i.title }}</div>
-        <div class="meta">Score: {{ i.totalScore | number:'1.2-2' }}</div>
-        <pre class="desc" *ngIf="i.description">{{ i.description }}</pre>
+  <section class="bucket" *ngIf="bucket(ideas, 'N2').length">
+    <div class="bucket-header">
+      <h3 class="bucket-title">Missing 2</h3>
+      <span class="bucket-count">{{ bucket(ideas, "N2").length }}</span>
+    </div>
+
+    <ul class="idea-list">
+      <li
+        class="idea-card"
+        *ngFor="let i of bucket(ideas, 'N2'); trackBy: trackById"
+      >
+        <div class="idea-top">
+          <div class="idea-title-wrap">
+            <div class="idea-title">{{ i.title }}</div>
+            <div class="idea-score">
+              Score: {{ i.totalScore | number: "1.2-2" }}
+            </div>
+          </div>
+          <span class="idea-badge missing">+2</span>
+        </div>
+
+        <pre class="idea-desc" *ngIf="i.description">{{ i.description }}</pre>
       </li>
     </ul>
   </section>

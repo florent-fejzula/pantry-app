@@ -1,73 +1,153 @@
-<div class="ask">
-  <header class="hdr">
-    <h2>What do you feel like?</h2>
-    <textarea
-      [formControl]="prompt"
-      rows="3"
-      placeholder='e.g. "light dinner, no frying, Turkish/Levant vibe."'
-      aria-label="Prompt"
-    ></textarea>
+<div class="ideas-page">
+  <header class="ideas-header">
+    <div class="title-row">
+      <h2 class="title">✨ Ideas</h2>
+    </div>
+
+    <div class="prompt-card">
+      <label class="section-label" for="ideas-prompt"
+        >What do you feel like?</label
+      >
+
+      <textarea
+        id="ideas-prompt"
+        [formControl]="prompt"
+        rows="3"
+        placeholder='e.g. "light dinner, no frying, Turkish/Levant vibe."'
+        aria-label="Prompt"
+      ></textarea>
+    </div>
   </header>
 
-  <section class="filters">
-    <div class="row">
-      <label>Max missing</label>
-      <div class="btns">
-        <button [class.active]="maxMissing()===0" (click)="maxMissing.set(0)">0</button>
-        <button [class.active]="maxMissing()===1" (click)="maxMissing.set(1)">1</button>
-        <button [class.active]="maxMissing()===2" (click)="maxMissing.set(2)">2</button>
+  <section class="filters-card">
+    <div class="filter-block">
+      <div class="filter-label">Max missing</div>
+      <div class="segmented">
+        <button
+          type="button"
+          [class.active]="maxMissing() === 0"
+          (click)="maxMissing.set(0)"
+        >
+          0
+        </button>
+        <button
+          type="button"
+          [class.active]="maxMissing() === 1"
+          (click)="maxMissing.set(1)"
+        >
+          1
+        </button>
+        <button
+          type="button"
+          [class.active]="maxMissing() === 2"
+          (click)="maxMissing.set(2)"
+        >
+          2
+        </button>
       </div>
     </div>
 
-    <div class="row">
-      <label>Time</label>
-      <div class="btns">
-        <button *ngFor="let t of [10,15,20,30,45,60]"
-                [class.active]="time()===t"
-                (click)="time.set(t)">{{t}}′</button>
-        <button [class.active]="time()===null" (click)="time.set(null)">Any</button>
-      </div>
-    </div>
-
-    <div class="row">
-      <label>Cuisines</label>
+    <div class="filter-block">
+      <div class="filter-label">Time</div>
       <div class="chips">
-        <button *ngFor="let c of ['Turkish','Levant','Italian','Balkan','Mexican','Indian','East Asian']"
-                [class.active]="cuisines().includes(c)"
-                (click)="toggleCuisine(c)">{{c}}</button>
+        <button
+          type="button"
+          *ngFor="let t of [10, 15, 20, 30, 45, 60]"
+          [class.active]="time() === t"
+          (click)="time.set(t)"
+        >
+          {{ t }}′
+        </button>
+
+        <button
+          type="button"
+          [class.active]="time() === null"
+          (click)="time.set(null)"
+        >
+          Any
+        </button>
       </div>
     </div>
 
-    <div class="row">
-      <label>Star Ingredient</label>
-      <div class="star">
-        <input
-          type="text"
-          list="pantry-suggestions"
-          [formControl]="starInput"
-          placeholder="type to select (e.g. bulgur, chicken, yogurt)…"
-          (keyup.enter)="setStarFromInput()"
-        />
+    <div class="filter-block">
+      <div class="filter-label">Cuisines</div>
+      <div class="chips">
+        <button
+          type="button"
+          *ngFor="
+            let c of [
+              'Turkish',
+              'Levant',
+              'Italian',
+              'Balkan',
+              'Mexican',
+              'Indian',
+              'East Asian',
+            ]
+          "
+          [class.active]="cuisines().includes(c)"
+          (click)="toggleCuisine(c)"
+        >
+          {{ c }}
+        </button>
+      </div>
+    </div>
+
+    <div class="filter-block">
+      <div class="filter-label">Star ingredient</div>
+
+      <div class="star-wrap">
+        <div class="star-input-row">
+          <input
+            type="text"
+            list="pantry-suggestions"
+            [formControl]="starInput"
+            placeholder="type to select (e.g. bulgur, chicken, yogurt)..."
+            (keyup.enter)="setStarFromInput()"
+          />
+
+          <button type="button" class="set-btn" (click)="setStarFromInput()">
+            Set
+          </button>
+        </div>
+
         <datalist id="pantry-suggestions">
-          <option *ngFor="let n of (pantryNames$ | async)" [value]="n"></option>
+          <option *ngFor="let n of pantryNames$ | async" [value]="n"></option>
         </datalist>
 
-        <button class="set" (click)="setStarFromInput()">Set</button>
+        <div *ngIf="starIngredient()" class="picked-chip">
+          <span>{{ starIngredient() }}</span>
+          <button
+            type="button"
+            class="clear-btn"
+            title="Remove"
+            (click)="clearStar()"
+          >
+            ×
+          </button>
+        </div>
+      </div>
+    </div>
 
-        <span *ngIf="starIngredient()" class="picked">
-          {{ starIngredient() }}
-          <button class="clear" title="Remove" (click)="clearStar()">×</button>
-        </span>
+    <div class="generate-row">
+      <button
+        type="button"
+        class="generate-btn"
+        (click)="generate()"
+        [disabled]="loading()"
+      >
+        {{ loading() ? "Generating..." : "Generate ideas" }}
+      </button>
+
+      <div *ngIf="error()" class="error-text">
+        {{ error() }}
       </div>
     </div>
   </section>
 
-  <section style="margin-top:12px;display:flex;gap:8px;align-items:center">
-    <button class="generate" (click)="generate()" [disabled]="loading()">Generate</button>
-    <span *ngIf="loading()">Generating…</span>
-    <span *ngIf="error()" style="color:#c33">{{ error() }}</span>
-  </section>
+  <app-results
+    id="results"
+    [ideas]="(ideas$ | async) ?? []"
+    [generatedOnce]="generatedOnce()"
+  ></app-results>
 </div>
-
-<!-- Child results, same page -->
-<app-results id="results" [ideas]="(ideas$ | async) ?? []" [generatedOnce]="generatedOnce()"></app-results>
