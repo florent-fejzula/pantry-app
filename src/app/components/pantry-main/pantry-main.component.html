@@ -1,21 +1,21 @@
 <div class="pantry">
   <header class="bar">
-    <h2>Pantry</h2>
+    <h2>🥗 Pantry</h2>
 
-    <div class="search">
+    <!-- <div class="search">
       <input
         type="text"
         [formControl]="search"
         placeholder="Search pantry…"
         aria-label="Search pantry"
       />
-    </div>
+    </div> -->
 
     <div class="quick-add">
       <input
         type="text"
         [formControl]="newName"
-        placeholder="Add item (press Enter)…"
+        placeholder="Add item (e.g. Eggs, Milk, Chicken)…"
         aria-label="New item name"
         (keyup.enter)="addQuick()"
       />
