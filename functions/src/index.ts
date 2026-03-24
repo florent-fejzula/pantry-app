@@ -7,10 +7,12 @@ const OPENAI_API_KEY = defineSecret('OPENAI_API_KEY');
 type GenerateIdeasPayload = {
   system?: string;
   constraints?: {
+    ideaCount?: number;
     maxMissing?: number;
     time?: number | null;
     cuisines?: string[];
     starIngredient?: string | null;
+    preferRealRecipes?: boolean;
   };
   userPrompt?: string;
   pantry?: string[];
@@ -49,14 +51,14 @@ export const generateIdeas = onRequest(
       const pantryRaw = Array.isArray(body.pantry) ? body.pantry : null;
 
       if (!pantryRaw) {
-        res.status(400).json({ error: 'payload.pantry must be an array of strings' });
+        res
+          .status(400)
+          .json({ error: 'payload.pantry must be an array of strings' });
         return;
       }
 
       const pantry = uniqueStrings(
-        pantryRaw
-          .map((x) => String(x || '').trim())
-          .filter(Boolean)
+        pantryRaw.map((x) => String(x || '').trim()).filter(Boolean),
       );
 
       if (!pantry.length) {
@@ -64,27 +66,32 @@ export const generateIdeas = onRequest(
         return;
       }
 
+      const ideaCount = sanitizeIdeaCount(body.constraints?.ideaCount);
       const maxMissing = sanitizeMaxMissing(body.constraints?.maxMissing);
       const time = sanitizeTime(body.constraints?.time);
       const cuisines = Array.isArray(body.constraints?.cuisines)
         ? uniqueStrings(
-            body.constraints!.cuisines!
-              .map((x) => String(x || '').trim())
-              .filter(Boolean)
-          ).slice(0, 6)
+            body
+              .constraints!.cuisines!.map((x) => String(x || '').trim())
+              .filter(Boolean),
+          ).slice(0, 10)
         : [];
-      const starIngredient = String(body.constraints?.starIngredient || '').trim() || null;
+      const starIngredient =
+        String(body.constraints?.starIngredient || '').trim() || null;
+      const preferRealRecipes = body.constraints?.preferRealRecipes === true;
       const userPrompt = String(body.userPrompt || '').trim();
       const system =
         String(body.system || '').trim() ||
-        'You are a culinary assistant. Respect halal; avoid alcohol. Keep steps concise, practical, and reproducible.';
+        'You are a culinary assistant. Respect halal; avoid alcohol. Keep steps concise, practical, and reproducible. Prefer genuine named dishes over vague descriptive titles whenever a real dish clearly fits.';
 
       const outputRules = buildOutputRules({
         pantry,
+        ideaCount,
         maxMissing,
         time,
         cuisines,
         starIngredient,
+        preferRealRecipes,
       });
 
       const client = new OpenAI({
@@ -93,7 +100,7 @@ export const generateIdeas = onRequest(
 
       const completion = await client.chat.completions.create({
         model: 'gpt-5.4',
-        temperature: 0.7,
+        temperature: preferRealRecipes ? 0.45 : 0.7,
         messages: [
           { role: 'system', content: system },
           {
@@ -107,26 +114,30 @@ export const generateIdeas = onRequest(
       const parsed = parseIdeasFromModel(text);
       const ideas = parsed
         .map(normalizeIdea)
-        .filter((idea) => idea.title && idea.ingredients.length && idea.steps.length)
-        .slice(0, 6);
+        .filter(
+          (idea) => idea.title && idea.ingredients.length && idea.steps.length,
+        )
+        .slice(0, ideaCount);
 
       res.json({ ideas });
     } catch (err: any) {
       console.error('[generateIdeas]', err);
       res.status(500).json({ error: err?.message ?? 'LLM error' });
     }
-  }
+  },
 );
 
 function buildOutputRules(args: {
   pantry: string[];
+  ideaCount: number;
   maxMissing: 0 | 1 | 2;
   time: number | null;
   cuisines: string[];
   starIngredient: string | null;
+  preferRealRecipes: boolean;
 }): string {
   return `
-Return ONLY a JSON array with exactly 6 items.
+Return ONLY a JSON array with exactly ${args.ideaCount} items.
 
 Each item must be:
 {
@@ -145,6 +156,16 @@ Rules:
 - Keep titles natural and appetizing.
 - Ingredients should be simple strings only, no quantities.
 - Steps must be concise, practical, and 4 to 7 items long.
+- If a dish corresponds to a real established recipe, use its proper canonical name instead of a generic description.
+- Example: use "Aglio e Olio", not "pasta with garlic and olive oil".
+- Example: use "Menemen", not "eggs with tomato and peppers".
+- Example: use "Tufahija", not "apple walnut dessert".
+- Example: use "Melanzane alla Parmigiana", not "fried eggplant with parmesan".
+- ${
+    args.preferRealRecipes
+      ? 'Strongly prefer real existing named dishes from the real world. Only use a generic invented title if no genuine named dish fits the pantry and constraints well.'
+      : 'Real named dishes are welcome when they fit, but non-canonical ideas are also allowed.'
+  }
 - Do not include markdown.
 - Do not include commentary.
 - Do not include code fences.
@@ -178,15 +199,19 @@ function normalizeIdea(raw: any): LlmIdea {
       ? uniqueStrings(
           raw.ingredients
             .map((x: any) => String(x || '').trim())
-            .filter(Boolean)
+            .filter(Boolean),
         )
       : [],
     steps: Array.isArray(raw?.steps)
-      ? raw.steps
-          .map((x: any) => String(x || '').trim())
-          .filter(Boolean)
+      ? raw.steps.map((x: any) => String(x || '').trim()).filter(Boolean)
       : [],
   };
+}
+
+function sanitizeIdeaCount(value: unknown): number {
+  const num = Number(value);
+  if (!Number.isFinite(num)) return 3;
+  return Math.max(1, Math.min(12, Math.round(num)));
 }
 
 function sanitizeMaxMissing(value: unknown): 0 | 1 | 2 {

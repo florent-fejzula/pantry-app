@@ -10,10 +10,12 @@ import { environment } from '../../environments/environment';
 
 export interface GenerateParams {
   prompt: string;
+  ideaCount: 1 | 2 | 3 | 5;
   maxMissing: 0 | 1 | 2;
   time: number | null;
   cuisines: string[];
   starIngredient: string | null;
+  preferRealRecipes: boolean;
 }
 
 type RawIdea = {
@@ -66,12 +68,14 @@ export class IdeaEngineService {
   private buildPayload(pantry: string[], p: GenerateParams) {
     return {
       system:
-        'You are a culinary assistant. Respect halal; avoid alcohol. Keep steps concise, useful, and reproducible.',
+        'You are a culinary assistant. Respect halal; avoid alcohol. Keep steps concise, useful, and reproducible. Use natural, appetizing dish titles and avoid awkward generic phrasing.',
       constraints: {
+        ideaCount: p.ideaCount,
         maxMissing: p.maxMissing,
         time: p.time,
         cuisines: p.cuisines,
         starIngredient: p.starIngredient,
+        preferRealRecipes: p.preferRealRecipes,
       },
       userPrompt: (p.prompt || '').trim(),
       pantry,
@@ -94,7 +98,7 @@ export class IdeaEngineService {
     }
 
     try {
-      return await this.callRemote(endpoint, payload);
+      return await this.callRemote(endpoint, payload, params.ideaCount);
     } catch (err) {
       if (useMock) {
         console.warn(
@@ -107,7 +111,11 @@ export class IdeaEngineService {
     }
   }
 
-  private async callRemote(endpoint: string, payload: any): Promise<RawIdea[]> {
+  private async callRemote(
+    endpoint: string,
+    payload: any,
+    maxIdeas: number,
+  ): Promise<RawIdea[]> {
     try {
       const res = await firstValueFrom(this.http.post<any>(endpoint, payload));
       const arr = Array.isArray(res) ? res : (res?.ideas ?? []);
@@ -117,7 +125,7 @@ export class IdeaEngineService {
         .filter(
           (r: RawIdea) => r.title && r.ingredients.length && r.steps.length,
         )
-        .slice(0, 12);
+        .slice(0, maxIdeas);
     } catch (e: any) {
       const status = e?.status || e?.response?.status;
       const msg = e?.error?.error || e?.message || 'LLM request failed';
@@ -145,6 +153,12 @@ export class IdeaEngineService {
     p: GenerateParams,
     pantry: string[],
   ): Promise<RawIdea[]> {
+    const count = p.ideaCount || 3;
+
+    if (p.preferRealRecipes) {
+      return this.buildRealRecipeMockCatalog().slice(0, count);
+    }
+
     const star = p.starIngredient?.trim() || null;
     const leadCuisine = p.cuisines[0] || null;
 
@@ -161,40 +175,215 @@ export class IdeaEngineService {
       return this.uniqueStrings(out).slice(0, count);
     };
 
+    const titleTemplates = [
+      () => (star ? `${star} skillet plate` : 'Quick pantry skillet'),
+      () =>
+        leadCuisine ? `${leadCuisine} comfort bowl` : 'Comfort pantry bowl',
+      () => 'One-pan home meal',
+      () => 'Simple pantry plate',
+      () => 'Weeknight comfort dish',
+      () => 'Fast stovetop meal',
+      () => 'Pantry dinner idea',
+      () => 'Cozy one-pan supper',
+      () => 'Home-style quick plate',
+      () => 'Simple comfort bowl',
+      () => 'Easy family dinner',
+      () => 'Quick savory plate',
+    ];
+
+    const stepTemplates = [
+      [
+        'Prep the ingredients into bite-sized pieces.',
+        'Cook the main base ingredient first until lightly colored.',
+        'Add the remaining ingredients in stages so they keep texture.',
+        'Season and adjust moisture with a small splash of water if needed.',
+        'Serve hot.',
+      ],
+      [
+        'Build a simple flavor base with the strongest pantry ingredients.',
+        'Cook the main body of the dish until cohesive.',
+        'Add quick-cooking ingredients near the end.',
+        'Taste and adjust salt, acidity, and richness.',
+        'Plate and finish simply.',
+      ],
+      [
+        'Heat the pan and start with the ingredient that needs the longest cooking.',
+        'Layer in the remaining ingredients gradually.',
+        'Keep the heat moderate so nothing burns.',
+        'Bring the flavors together with seasoning.',
+        'Serve once everything is cooked through.',
+      ],
+    ];
+
+    return Array.from({ length: count }, (_, index) => ({
+      title: titleTemplates[index % titleTemplates.length](),
+      ingredients: picks(index % 2 === 0 ? 5 : 6),
+      steps: stepTemplates[index % stepTemplates.length],
+    }));
+  }
+
+  private buildRealRecipeMockCatalog(): RawIdea[] {
     return [
       {
-        title: star ? `${star} skillet plate` : 'Quick pantry skillet',
-        ingredients: picks(5),
+        title: 'Aglio e Olio',
+        ingredients: [
+          'spaghetti',
+          'garlic',
+          'olive oil',
+          'chili flakes',
+          'parsley',
+        ],
         steps: [
-          'Prep the ingredients into bite-sized pieces.',
-          'Cook the main base ingredient first until lightly colored.',
-          'Add the remaining ingredients in stages so they keep texture.',
-          'Season and adjust moisture with a small splash of water if needed.',
+          'Cook the spaghetti until al dente.',
+          'Gently warm the garlic in olive oil without browning it too much.',
+          'Add chili flakes and a small splash of pasta water.',
+          'Toss the spaghetti through the sauce until glossy.',
+          'Finish with parsley and serve immediately.',
+        ],
+      },
+      {
+        title: 'Menemen',
+        ingredients: [
+          'eggs',
+          'tomatoes',
+          'green peppers',
+          'butter',
+          'olive oil',
+        ],
+        steps: [
+          'Soften the peppers in butter and olive oil.',
+          'Add chopped tomatoes and cook until jammy.',
+          'Lightly season and reduce the mixture a little.',
+          'Add beaten eggs and stir gently until softly set.',
+          'Serve hot with bread.',
+        ],
+      },
+      {
+        title: 'Yayla Çorbası',
+        ingredients: ['yogurt', 'rice', 'egg', 'butter', 'mint'],
+        steps: [
+          'Cook the rice until tender in water.',
+          'Whisk yogurt and egg until smooth.',
+          'Temper the yogurt mixture with some hot liquid.',
+          'Return it to the pot and cook gently without boiling hard.',
+          'Finish with butter and dried mint.',
+        ],
+      },
+      {
+        title: 'Tufahija',
+        ingredients: ['apples', 'walnuts', 'sugar', 'cinnamon', 'lemon'],
+        steps: [
+          'Peel and core the apples carefully.',
+          'Poach them gently in sweetened water with lemon.',
+          'Cook until just tender but still holding shape.',
+          'Fill the centers with walnuts.',
+          'Serve cooled with a little syrup.',
+        ],
+      },
+      {
+        title: 'Melanzane alla Parmigiana',
+        ingredients: [
+          'eggplant',
+          'pomodoro sauce',
+          'parmesan',
+          'olive oil',
+          'basil',
+        ],
+        steps: [
+          'Slice and cook the eggplant until softened and lightly golden.',
+          'Spread a little sauce in a baking dish.',
+          'Layer eggplant, sauce, parmesan, and basil.',
+          'Repeat the layers and finish with parmesan on top.',
+          'Bake until bubbling and settled.',
+        ],
+      },
+      {
+        title: 'Bruschetta al Pomodoro',
+        ingredients: ['bread', 'tomatoes', 'garlic', 'olive oil', 'basil'],
+        steps: [
+          'Toast or grill the bread until crisp.',
+          'Rub the warm bread with garlic.',
+          'Mix chopped tomatoes with olive oil and basil.',
+          'Spoon the tomato mixture over the bread.',
+          'Serve right away.',
+        ],
+      },
+      {
+        title: 'Şakşuka',
+        ingredients: ['eggplant', 'tomatoes', 'garlic', 'olive oil', 'peppers'],
+        steps: [
+          'Cook the eggplant until tender and lightly colored.',
+          'Prepare a tomato-pepper-garlic sauce in olive oil.',
+          'Simmer until the sauce thickens slightly.',
+          'Top the eggplant with the sauce.',
+          'Serve warm or at room temperature.',
+        ],
+      },
+      {
+        title: 'Cacık',
+        ingredients: ['yogurt', 'cucumber', 'garlic', 'olive oil', 'mint'],
+        steps: [
+          'Grate or finely chop the cucumber.',
+          'Mix it with yogurt and crushed garlic.',
+          'Thin slightly if needed for the texture you want.',
+          'Finish with olive oil and mint.',
+          'Serve chilled.',
+        ],
+      },
+      {
+        title: 'Pasta al Pomodoro',
+        ingredients: [
+          'pasta',
+          'pomodoro sauce',
+          'garlic',
+          'olive oil',
+          'basil',
+        ],
+        steps: [
+          'Cook the pasta until al dente.',
+          'Warm garlic gently in olive oil.',
+          'Add pomodoro sauce and simmer briefly.',
+          'Toss the pasta with the sauce and a little pasta water.',
+          'Finish with basil and serve.',
+        ],
+      },
+      {
+        title: 'Patatas Bravas',
+        ingredients: [
+          'potatoes',
+          'pomodoro sauce',
+          'garlic',
+          'olive oil',
+          'paprika',
+        ],
+        steps: [
+          'Cook the potatoes until crisp outside and soft inside.',
+          'Prepare a simple spicy tomato sauce with garlic and paprika.',
+          'Season the potatoes well.',
+          'Spoon the sauce over or alongside them.',
           'Serve hot.',
         ],
       },
       {
-        title: leadCuisine
-          ? `${leadCuisine} comfort bowl`
-          : 'Comfort pantry bowl',
-        ingredients: picks(6),
+        title: 'Tarator',
+        ingredients: ['yogurt', 'cucumber', 'garlic', 'walnuts', 'olive oil'],
         steps: [
-          'Build a simple flavor base with the strongest pantry ingredients.',
-          'Cook the main body of the dish until cohesive.',
-          'Add quick-cooking ingredients near the end.',
-          'Taste and adjust salt, acidity, and richness.',
-          'Plate and finish simply.',
+          'Finely chop or grate the cucumber.',
+          'Mix with yogurt and crushed garlic.',
+          'Add crushed walnuts for body.',
+          'Finish with olive oil and a little seasoning.',
+          'Serve cold.',
         ],
       },
       {
-        title: 'One-pan home meal',
-        ingredients: picks(5),
+        title: 'Shakshuka',
+        ingredients: ['eggs', 'tomatoes', 'peppers', 'onion', 'olive oil'],
         steps: [
-          'Heat the pan and start with the ingredient that needs the longest cooking.',
-          'Layer in the remaining ingredients gradually.',
-          'Keep the heat moderate so nothing burns.',
-          'Bring the flavors together with seasoning.',
-          'Serve once everything is cooked through.',
+          'Soften onion and peppers in olive oil.',
+          'Add tomatoes and cook until rich and thick.',
+          'Make small wells in the sauce.',
+          'Crack in the eggs and cook until just set.',
+          'Serve directly from the pan.',
         ],
       },
     ];

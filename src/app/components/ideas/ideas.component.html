@@ -5,9 +5,9 @@
     </div>
 
     <div class="prompt-card">
-      <label class="section-label" for="ideas-prompt"
-        >What do you feel like?</label
-      >
+      <label class="section-label" for="ideas-prompt">
+        What do you feel like?
+      </label>
 
       <textarea
         id="ideas-prompt"
@@ -20,6 +20,20 @@
   </header>
 
   <section class="filters-card">
+    <div class="filter-block">
+      <div class="filter-label">How many ideas?</div>
+      <div class="segmented">
+        <button
+          type="button"
+          *ngFor="let count of ideaCountOptions"
+          [class.active]="ideaCount() === count"
+          (click)="ideaCount.set(count)"
+        >
+          {{ count }}
+        </button>
+      </div>
+    </div>
+
     <div class="filter-block">
       <div class="filter-label">Max missing</div>
       <div class="segmented">
@@ -71,26 +85,69 @@
 
     <div class="filter-block">
       <div class="filter-label">Cuisines</div>
+
       <div class="chips">
         <button
           type="button"
-          *ngFor="
-            let c of [
-              'Turkish',
-              'Levant',
-              'Italian',
-              'Balkan',
-              'Mexican',
-              'Indian',
-              'East Asian',
-            ]
-          "
-          [class.active]="cuisines().includes(c)"
+          *ngFor="let c of predefinedCuisines"
+          [class.active]="hasCuisine(c)"
           (click)="toggleCuisine(c)"
         >
           {{ c }}
         </button>
       </div>
+
+      <div class="custom-input-row">
+        <input
+          type="text"
+          [formControl]="customCuisineInput"
+          placeholder="Add any cuisine or style (e.g. Greek, Persian, Ottoman...)"
+          (keyup.enter)="addCustomCuisineFromInput()"
+        />
+
+        <button
+          type="button"
+          class="set-btn"
+          (click)="addCustomCuisineFromInput()"
+        >
+          Add
+        </button>
+      </div>
+
+      <div *ngIf="cuisines().length" class="selected-list">
+        <div *ngFor="let c of cuisines()" class="picked-chip">
+          <span>{{ c }}</span>
+          <button
+            type="button"
+            class="clear-btn"
+            title="Remove"
+            (click)="removeCuisine(c)"
+          >
+            ×
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="filter-block">
+      <div class="filter-label">Recipe type</div>
+
+      <label class="option-card">
+        <input
+          #realRecipesToggle
+          type="checkbox"
+          [checked]="preferRealRecipes()"
+          (change)="preferRealRecipes.set(realRecipesToggle.checked)"
+        />
+
+        <div class="option-copy">
+          <div class="option-title">Prefer real existing recipes</div>
+          <div class="option-hint">
+            Try to return proper named dishes like Aglio e Olio, Menemen,
+            Tufahija, Yayla Çorbası, Melanzane alla Parmigiana…
+          </div>
+        </div>
+      </label>
     </div>
 
     <div class="filter-block">
