@@ -67,25 +67,40 @@ export const generateIdeas = onRequest(
       }
 
       const ideaCount = sanitizeIdeaCount(body.constraints?.ideaCount);
+      const requestedIdeaCount = inflateIdeaCountForGeneration(
+        ideaCount,
+        body.constraints?.preferRealRecipes === true,
+      );
+
       const maxMissing = sanitizeMaxMissing(body.constraints?.maxMissing);
       const time = sanitizeTime(body.constraints?.time);
+
       const cuisines = Array.isArray(body.constraints?.cuisines)
         ? uniqueStrings(
-            body
-              .constraints!.cuisines!.map((x) => String(x || '').trim())
+            body.constraints.cuisines
+              .map((x) => String(x || '').trim())
               .filter(Boolean),
           ).slice(0, 10)
         : [];
+
       const starIngredient =
         String(body.constraints?.starIngredient || '').trim() || null;
+
       const preferRealRecipes = body.constraints?.preferRealRecipes === true;
       const userPrompt = String(body.userPrompt || '').trim();
+
       const system =
         String(body.system || '').trim() ||
-        'You are a culinary assistant. Respect halal; avoid alcohol. Keep steps concise, practical, and reproducible. Prefer genuine named dishes over vague descriptive titles whenever a real dish clearly fits.';
+        [
+          'You are a culinary assistant.',
+          'Respect halal; avoid alcohol.',
+          'Keep steps concise, practical, and reproducible.',
+          'Prefer genuine named dishes over vague descriptive titles whenever a real dish clearly fits.',
+        ].join(' ');
 
       const outputRules = buildOutputRules({
         pantry,
+        requestedIdeaCount,
         ideaCount,
         maxMissing,
         time,
@@ -100,7 +115,7 @@ export const generateIdeas = onRequest(
 
       const completion = await client.chat.completions.create({
         model: 'gpt-5.4',
-        temperature: preferRealRecipes ? 0.45 : 0.7,
+        temperature: preferRealRecipes ? 0.35 : 0.7,
         messages: [
           { role: 'system', content: system },
           {
@@ -111,13 +126,17 @@ export const generateIdeas = onRequest(
       });
 
       const text = completion.choices?.[0]?.message?.content || '[]';
-      const parsed = parseIdeasFromModel(text);
-      const ideas = parsed
+
+      const parsed = parseIdeasFromModel(text)
         .map(normalizeIdea)
         .filter(
           (idea) => idea.title && idea.ingredients.length && idea.steps.length,
-        )
-        .slice(0, ideaCount);
+        );
+
+      const ideas = postProcessIdeas(parsed, {
+        ideaCount,
+        preferRealRecipes,
+      });
 
       res.json({ ideas });
     } catch (err: any) {
@@ -129,6 +148,7 @@ export const generateIdeas = onRequest(
 
 function buildOutputRules(args: {
   pantry: string[];
+  requestedIdeaCount: number;
   ideaCount: number;
   maxMissing: 0 | 1 | 2;
   time: number | null;
@@ -136,8 +156,12 @@ function buildOutputRules(args: {
   starIngredient: string | null;
   preferRealRecipes: boolean;
 }): string {
+  const firstLine = args.preferRealRecipes
+    ? `Return ONLY a JSON array with up to ${args.requestedIdeaCount} items.`
+    : `Return ONLY a JSON array with exactly ${args.requestedIdeaCount} items.`;
+
   return `
-Return ONLY a JSON array with exactly ${args.ideaCount} items.
+${firstLine}
 
 Each item must be:
 {
@@ -153,7 +177,6 @@ Rules:
 - ${args.time ? `Target total cooking time: ${args.time} minutes or less.` : 'Cooking time: any.'}
 - ${args.cuisines.length ? `Favor these cuisines/styles: ${args.cuisines.join(', ')}.` : 'Cuisine/style: any.'}
 - ${args.starIngredient ? `Center the ideas around this ingredient when suitable: ${args.starIngredient}.` : 'No star ingredient is required.'}
-- Keep titles natural and appetizing.
 - Ingredients should be simple strings only, no quantities.
 - Steps must be concise, practical, and 4 to 7 items long.
 - If a dish corresponds to a real established recipe, use its proper canonical name instead of a generic description.
@@ -163,13 +186,19 @@ Rules:
 - Example: use "Melanzane alla Parmigiana", not "fried eggplant with parmesan".
 - ${
     args.preferRealRecipes
-      ? 'Strongly prefer real existing named dishes from the real world. Only use a generic invented title if no genuine named dish fits the pantry and constraints well.'
+      ? [
+          'Real existing named dishes are REQUIRED whenever plausibly possible.',
+          'Do NOT invent filler titles.',
+          'Do NOT use vague descriptive titles like Bowl, Skillet, Plate, One-Pot, Comfort, Home-Style, Weeknight, Quick, Easy, Fresh, or Hearty unless that wording is truly the canonical dish name.',
+          'When a canonical named dish fits, use that named dish.',
+          `It is better to return fewer than ${args.requestedIdeaCount} items than to pad the answer with generic invented recipes.`,
+        ].join(' ')
       : 'Real named dishes are welcome when they fit, but non-canonical ideas are also allowed.'
   }
+- Output raw JSON only.
 - Do not include markdown.
 - Do not include commentary.
 - Do not include code fences.
-- Output raw JSON only.
 `.trim();
 }
 
@@ -206,6 +235,127 @@ function normalizeIdea(raw: any): LlmIdea {
       ? raw.steps.map((x: any) => String(x || '').trim()).filter(Boolean)
       : [],
   };
+}
+
+function postProcessIdeas(
+  ideas: LlmIdea[],
+  opts: {
+    ideaCount: number;
+    preferRealRecipes: boolean;
+  },
+): LlmIdea[] {
+  let out = dedupeIdeasByTitle(ideas);
+
+  if (opts.preferRealRecipes) {
+    const nonGeneric = out.filter(
+      (idea) => !isObviouslyGenericTitle(idea.title),
+    );
+
+    const rankedPrimary = (nonGeneric.length ? nonGeneric : out)
+      .map((idea) => ({
+        idea,
+        score: scoreRealRecipeLikelihood(idea),
+      }))
+      .sort((a, b) => b.score - a.score)
+      .map((x) => x.idea);
+
+    out = dedupeIdeasByTitle(rankedPrimary);
+  }
+
+  return out.slice(0, opts.ideaCount);
+}
+
+function dedupeIdeasByTitle(ideas: LlmIdea[]): LlmIdea[] {
+  const seen = new Set<string>();
+  const out: LlmIdea[] = [];
+
+  for (const idea of ideas) {
+    const key = normalizeTitleKey(idea.title);
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    out.push(idea);
+  }
+
+  return out;
+}
+
+function normalizeTitleKey(title: string): string {
+  return String(title || '')
+    .toLowerCase()
+    .trim()
+    .replace(/[’']/g, '')
+    .replace(/\s+/g, ' ');
+}
+
+function isObviouslyGenericTitle(title: string): boolean {
+  const t = normalizeTitleKey(title);
+
+  return /\b(bowl|skillet|plate|one-pot|one pot|comfort|home-style|homestyle|weeknight|quick|easy|fresh|hearty|pantry)\b/.test(
+    t,
+  );
+}
+
+function scoreRealRecipeLikelihood(idea: LlmIdea): number {
+  const title = normalizeTitleKey(idea.title);
+  const words = title.split(' ').filter(Boolean);
+  let score = 0;
+
+  if (isObviouslyGenericTitle(title)) score -= 100;
+
+  if (words.length >= 1 && words.length <= 4) score += 2;
+  if (words.length >= 5) score -= 0.75;
+
+  if (/\b(al|alla|allo|ai|con|di|de|del|della|au|à)\b/.test(title)) {
+    score += 1.25;
+  }
+
+  const canonicalDishHints = [
+    'aglio e olio',
+    'menemen',
+    'tufahija',
+    'parmigiana',
+    'lasagna',
+    'lasagne',
+    'risotto',
+    'biryani',
+    'pilaf',
+    'pilav',
+    'paella',
+    'shakshuka',
+    'tarator',
+    'chorba',
+    'corba',
+    'çorbası',
+    'jambalaya',
+    'kedgeree',
+    'khichdi',
+    'fried rice',
+    'arroz',
+    'congee',
+    'oyakodon',
+    'tagine',
+    'curry',
+  ];
+
+  if (canonicalDishHints.some((hint) => title.includes(hint))) {
+    score += 2.5;
+  }
+
+  if (/\b(with|and)\b/.test(title) && words.length >= 5) {
+    score -= 1;
+  }
+
+  if (idea.steps.length >= 4 && idea.steps.length <= 7) score += 0.5;
+
+  return score;
+}
+
+function inflateIdeaCountForGeneration(
+  ideaCount: number,
+  preferRealRecipes: boolean,
+): number {
+  if (!preferRealRecipes) return ideaCount;
+  return Math.min(18, Math.max(8, ideaCount * 3));
 }
 
 function sanitizeIdeaCount(value: unknown): number {

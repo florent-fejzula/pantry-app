@@ -397,7 +397,6 @@ export class IdeaEngineService {
     const pantryExact = new Set(
       pantry.map((n) => this.normalizeIngredientName(n)),
     );
-    const pantryLoose = pantry.map((n) => this.normalizeIngredientName(n));
 
     const bundles: ScoredIdeaBundle[] = [];
 
@@ -408,7 +407,7 @@ export class IdeaEngineService {
 
       for (const ingName of r.ingredients) {
         const normalizedIng = this.normalizeIngredientName(ingName);
-        const has = this.matchesPantry(normalizedIng, pantryExact, pantryLoose);
+        const has = this.matchesPantry(normalizedIng, pantryExact);
 
         const ing: IdeaIngredient = {
           id:
@@ -442,9 +441,12 @@ export class IdeaEngineService {
       const coverageScore = coverage / used.length;
       const stepCount = r.steps.length || 1;
       const structureScore = Math.min(1, stepCount / 5);
+
+      const realRecipeScore = this.scoreRealRecipeLikelihood(r.title);
       const totalScore = +(
-        coverageScore * 0.88 +
-        structureScore * 0.12
+        coverageScore * 0.78 +
+        structureScore * 0.1 +
+        realRecipeScore * 0.12
       ).toFixed(4);
 
       const description = this.buildDescription(r.ingredients, r.steps);
@@ -461,6 +463,7 @@ export class IdeaEngineService {
         scoreBreakdown: {
           pantryCoverage: coverageScore,
           structureScore,
+          preferenceFit: realRecipeScore,
         },
         allowSubstitutions: true,
         description,
@@ -508,26 +511,87 @@ export class IdeaEngineService {
   }
 
   private normalizeIngredientName(value: string): string {
-    return value
+    return String(value || '')
       .toLowerCase()
       .trim()
       .replace(/[()[\],]/g, ' ')
-      .replace(/\b\d+([.,]\d+)?\s*(g|kg|ml|l)\b/g, ' ')
-      .replace(/\b(clove|cloves|piece|pieces|pc|pcs|tbsp|tsp)\b/g, ' ')
+      .replace(/[’']/g, '')
       .replace(/\s+/g, ' ')
       .trim();
   }
 
-  private matchesPantry(
-    ingredient: string,
-    pantryExact: Set<string>,
-    pantryLoose: string[],
-  ): boolean {
-    if (!ingredient) return false;
-    if (pantryExact.has(ingredient)) return true;
+  private matchesPantry(ingredient: string, pantryExact: Set<string>): boolean {
+    return !!ingredient && pantryExact.has(ingredient);
+  }
 
-    return pantryLoose.some(
-      (p) => p.includes(ingredient) || ingredient.includes(p),
+  private normalizeTitleKey(title: string): string {
+    return String(title || '')
+      .toLowerCase()
+      .trim()
+      .replace(/[’']/g, '')
+      .replace(/\s+/g, ' ');
+  }
+
+  private isObviouslyGenericTitle(title: string): boolean {
+    const t = this.normalizeTitleKey(title);
+
+    return /\b(bowl|skillet|plate|one-pot|one pot|comfort|home-style|homestyle|weeknight|quick|easy|fresh|hearty|pantry)\b/.test(
+      t,
     );
+  }
+
+  private scoreRealRecipeLikelihood(title: string): number {
+    const t = this.normalizeTitleKey(title);
+    const words = t.split(' ').filter(Boolean);
+
+    let score = 0.5;
+
+    if (this.isObviouslyGenericTitle(t)) score -= 0.45;
+
+    if (words.length >= 1 && words.length <= 4) score += 0.12;
+    if (words.length >= 5) score -= 0.06;
+
+    if (/\b(al|alla|allo|ai|con|di|de|del|della|au|à)\b/.test(t)) {
+      score += 0.08;
+    }
+
+    const canonicalDishHints = [
+      'aglio e olio',
+      'menemen',
+      'tufahija',
+      'parmigiana',
+      'lasagna',
+      'lasagne',
+      'risotto',
+      'biryani',
+      'pilaf',
+      'pilav',
+      'paella',
+      'shakshuka',
+      'tarator',
+      'chorba',
+      'corba',
+      'çorbası',
+      'jambalaya',
+      'kedgeree',
+      'khichdi',
+      'fried rice',
+      'arroz',
+      'congee',
+      'oyakodon',
+      'tagine',
+      'curry',
+      'hainanese chicken rice',
+    ];
+
+    if (canonicalDishHints.some((hint) => t.includes(hint))) {
+      score += 0.28;
+    }
+
+    if (/\b(with|and)\b/.test(t) && words.length >= 5) {
+      score -= 0.08;
+    }
+
+    return Math.max(0, Math.min(1, score));
   }
 }

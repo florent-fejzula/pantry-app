@@ -21,17 +21,56 @@
         class="idea-card"
         *ngFor="let i of bucket(ideas, 'READY'); trackBy: trackById"
       >
-        <div class="idea-top">
-          <div class="idea-title-wrap">
-            <div class="idea-title">{{ i.title }}</div>
-            <div class="idea-score">
-              Score: {{ i.totalScore | number: "1.2-2" }}
+        <ng-container
+          *ngIf="ingredientStreams[i.id] | async as linkedIngredients"
+        >
+          <div class="idea-top">
+            <div class="idea-title-wrap">
+              <div class="idea-title">{{ i.title }}</div>
+              <div class="idea-score">
+                Score: {{ i.totalScore | number: "1.2-2" }}
+              </div>
+            </div>
+            <span class="idea-badge ready">Ready</span>
+          </div>
+
+          <div class="idea-detail-card">
+            <div class="detail-section" *ngIf="parsedIngredients(i).length">
+              <div class="detail-title">Ingredients</div>
+
+              <ul class="ingredient-list">
+                <li
+                  class="ingredient-item"
+                  *ngFor="let ing of parsedIngredients(i)"
+                  [class.missing]="isMissing(ing, linkedIngredients)"
+                >
+                  <span class="ingredient-name">{{ ing }}</span>
+
+                  <span
+                    *ngIf="isMissing(ing, linkedIngredients)"
+                    class="missing-pill"
+                  >
+                    Missing
+                  </span>
+                </li>
+              </ul>
+            </div>
+
+            <div class="detail-section" *ngIf="parsedSteps(i).length">
+              <div class="detail-title">Steps</div>
+
+              <ol class="steps-list">
+                <li
+                  class="step-item"
+                  *ngFor="let step of parsedSteps(i); let idx = index"
+                >
+                  <span class="step-number">{{ idx + 1 }}</span>
+                  <span class="step-text">{{ step }}</span>
+                </li>
+              </ol>
             </div>
           </div>
-          <span class="idea-badge ready">Ready</span>
-        </div>
-
-        <pre class="idea-desc" *ngIf="i.description">{{ i.description }}</pre>
+        </ng-container>
       </li>
     </ul>
   </section>
@@ -47,17 +86,56 @@
         class="idea-card"
         *ngFor="let i of bucket(ideas, 'N1'); trackBy: trackById"
       >
-        <div class="idea-top">
-          <div class="idea-title-wrap">
-            <div class="idea-title">{{ i.title }}</div>
-            <div class="idea-score">
-              Score: {{ i.totalScore | number: "1.2-2" }}
+        <ng-container
+          *ngIf="ingredientStreams[i.id] | async as linkedIngredients"
+        >
+          <div class="idea-top">
+            <div class="idea-title-wrap">
+              <div class="idea-title">{{ i.title }}</div>
+              <div class="idea-score">
+                Score: {{ i.totalScore | number: "1.2-2" }}
+              </div>
+            </div>
+            <span class="idea-badge missing">+1</span>
+          </div>
+
+          <div class="idea-detail-card">
+            <div class="detail-section" *ngIf="parsedIngredients(i).length">
+              <div class="detail-title">Ingredients</div>
+
+              <ul class="ingredient-list">
+                <li
+                  class="ingredient-item"
+                  *ngFor="let ing of parsedIngredients(i)"
+                  [class.missing]="isMissing(ing, linkedIngredients)"
+                >
+                  <span class="ingredient-name">{{ ing }}</span>
+
+                  <span
+                    *ngIf="isMissing(ing, linkedIngredients)"
+                    class="missing-pill"
+                  >
+                    Missing
+                  </span>
+                </li>
+              </ul>
+            </div>
+
+            <div class="detail-section" *ngIf="parsedSteps(i).length">
+              <div class="detail-title">Steps</div>
+
+              <ol class="steps-list">
+                <li
+                  class="step-item"
+                  *ngFor="let step of parsedSteps(i); let idx = index"
+                >
+                  <span class="step-number">{{ idx + 1 }}</span>
+                  <span class="step-text">{{ step }}</span>
+                </li>
+              </ol>
             </div>
           </div>
-          <span class="idea-badge missing">+1</span>
-        </div>
-
-        <pre class="idea-desc" *ngIf="i.description">{{ i.description }}</pre>
+        </ng-container>
       </li>
     </ul>
   </section>
@@ -73,17 +151,56 @@
         class="idea-card"
         *ngFor="let i of bucket(ideas, 'N2'); trackBy: trackById"
       >
-        <div class="idea-top">
-          <div class="idea-title-wrap">
-            <div class="idea-title">{{ i.title }}</div>
-            <div class="idea-score">
-              Score: {{ i.totalScore | number: "1.2-2" }}
+        <ng-container
+          *ngIf="ingredientStreams[i.id] | async as linkedIngredients"
+        >
+          <div class="idea-top">
+            <div class="idea-title-wrap">
+              <div class="idea-title">{{ i.title }}</div>
+              <div class="idea-score">
+                Score: {{ i.totalScore | number: "1.2-2" }}
+              </div>
+            </div>
+            <span class="idea-badge missing">+2</span>
+          </div>
+
+          <div class="idea-detail-card">
+            <div class="detail-section" *ngIf="parsedIngredients(i).length">
+              <div class="detail-title">Ingredients</div>
+
+              <ul class="ingredient-list">
+                <li
+                  class="ingredient-item"
+                  *ngFor="let ing of parsedIngredients(i)"
+                  [class.missing]="isMissing(ing, linkedIngredients)"
+                >
+                  <span class="ingredient-name">{{ ing }}</span>
+
+                  <span
+                    *ngIf="isMissing(ing, linkedIngredients)"
+                    class="missing-pill"
+                  >
+                    Missing
+                  </span>
+                </li>
+              </ul>
+            </div>
+
+            <div class="detail-section" *ngIf="parsedSteps(i).length">
+              <div class="detail-title">Steps</div>
+
+              <ol class="steps-list">
+                <li
+                  class="step-item"
+                  *ngFor="let step of parsedSteps(i); let idx = index"
+                >
+                  <span class="step-number">{{ idx + 1 }}</span>
+                  <span class="step-text">{{ step }}</span>
+                </li>
+              </ol>
             </div>
           </div>
-          <span class="idea-badge missing">+2</span>
-        </div>
-
-        <pre class="idea-desc" *ngIf="i.description">{{ i.description }}</pre>
+        </ng-container>
       </li>
     </ul>
   </section>
