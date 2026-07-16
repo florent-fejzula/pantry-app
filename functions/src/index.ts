@@ -114,7 +114,7 @@ export const generateIdeas = onRequest(
       });
 
       const completion = await client.chat.completions.create({
-        model: 'gpt-5.4',
+        model: 'gpt-5.6',
         temperature: preferRealRecipes ? 0.35 : 0.7,
         messages: [
           { role: 'system', content: system },
