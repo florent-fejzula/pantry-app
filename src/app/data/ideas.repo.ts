@@ -16,9 +16,11 @@ import {
   writeBatch
 } from '@angular/fire/firestore';
 import { Timestamp, serverTimestamp, getDocs } from 'firebase/firestore';
-import { Observable } from 'rxjs';
+import { Observable, of } from 'rxjs';
+import { switchMap } from 'rxjs/operators';
 import { Idea } from '../models/idea.model';
 import { IdeaIngredient } from '../models/idea-ingredient.model';
+import { AuthUserService } from './auth-user.service';
 
 type ReadinessTier = 'READY' | 'N1' | 'N2';
 
@@ -39,16 +41,23 @@ function dropUndefinedDeep<T>(obj: T): T {
 @Injectable({ providedIn: 'root' })
 export class IdeasRepo {
   private fs = inject(Firestore);
+  private authUser = inject(AuthUserService);
 
-  /** Stream ideas (optionally by readiness tier), sorted by score then createdAt */
+  /** Stream the signed-in user's ideas (optionally by readiness tier), sorted by score then createdAt */
   list$(opts?: { tier?: ReadinessTier; limit?: number }): Observable<Idea[]> {
-    const ref = collection(this.fs, 'ideas');
-    const clauses: any[] = [];
-    if (opts?.tier) clauses.push(where('readinessTier', '==', opts.tier));
-    clauses.push(orderBy('totalScore', 'desc'), orderBy('createdAt', 'desc'));
-    if (opts?.limit) clauses.push(limit(opts.limit));
-    const q = query(ref, ...clauses);
-    return collectionData(q, { idField: 'id' }) as Observable<Idea[]>;
+    return this.authUser.uid$.pipe(
+      switchMap((uid) => {
+        if (!uid) return of([]);
+
+        const ref = collection(this.fs, 'ideas');
+        const clauses: any[] = [where('uid', '==', uid)];
+        if (opts?.tier) clauses.push(where('readinessTier', '==', opts.tier));
+        clauses.push(orderBy('totalScore', 'desc'), orderBy('createdAt', 'desc'));
+        if (opts?.limit) clauses.push(limit(opts.limit));
+        const q = query(ref, ...clauses);
+        return collectionData(q, { idField: 'id' }) as Observable<Idea[]>;
+      }),
+    );
   }
 
   get$(ideaId: string): Observable<Idea | undefined> {
@@ -57,9 +66,15 @@ export class IdeasRepo {
   }
 
   ingredients$(ideaId: string): Observable<IdeaIngredient[]> {
-    const ref = collection(this.fs, `ideas/${ideaId}/ingredients`);
-    const q = query(ref, orderBy('name'));
-    return collectionData(q, { idField: 'id' }) as Observable<IdeaIngredient[]>;
+    return this.authUser.uid$.pipe(
+      switchMap((uid) => {
+        if (!uid) return of([]);
+
+        const ref = collection(this.fs, `ideas/${ideaId}/ingredients`);
+        const q = query(ref, where('uid', '==', uid), orderBy('name'));
+        return collectionData(q, { idField: 'id' }) as Observable<IdeaIngredient[]>;
+      }),
+    );
   }
 
   /**
@@ -68,9 +83,12 @@ export class IdeasRepo {
    */
   async upsertIdeaWithIngredients(
     ideaId: string | null,
-    idea: Omit<Idea, 'id' | 'createdAt' | 'updatedAt'> & Partial<Pick<Idea, 'createdAt' | 'updatedAt'>>,
-    ingredients: IdeaIngredient[]
+    idea: Omit<Idea, 'id' | 'uid' | 'createdAt' | 'updatedAt'> & Partial<Pick<Idea, 'createdAt' | 'updatedAt'>>,
+    ingredients: Omit<IdeaIngredient, 'uid'>[]
   ): Promise<string> {
+    const uid = this.authUser.currentUid;
+    if (!uid) throw new Error('You must be signed in to save ideas.');
+
     const now = serverTimestamp() as unknown as Timestamp;
 
     const ideaRef = ideaId
@@ -85,6 +103,7 @@ export class IdeasRepo {
     // Upsert idea (sanitize to avoid any `undefined`)
     const cleanIdea = dropUndefinedDeep({
       ...idea,
+      uid,
       readinessTier: tier,
       missingCount: Math.min(missing, 2),
       createdAt: (idea as any).createdAt ?? now,
@@ -92,13 +111,13 @@ export class IdeasRepo {
     });
     batch.set(ideaRef, cleanIdea, { merge: true });
 
-    // Ingredients (sanitize each)
+    // Ingredients (sanitize each, stamp uid so subcollection rules don't need a get() on the parent)
     const ingColPath = `${ideaRef.path}/ingredients`;
     for (const ing of ingredients) {
       const ingRef = ing.id
         ? doc(this.fs, `${ingColPath}/${ing.id}`)
         : doc(collection(this.fs, ingColPath));
-      batch.set(ingRef, dropUndefinedDeep(ing), { merge: true });
+      batch.set(ingRef, dropUndefinedDeep({ ...ing, uid }), { merge: true });
     }
 
     await batch.commit();
@@ -119,10 +138,13 @@ export class IdeasRepo {
     await deleteDoc(ideaRef);
   }
 
-  /** Keep only latest N ideas by createdAt (utility; optional) */
+  /** Keep only latest N of the signed-in user's ideas by createdAt (utility; optional) */
   async keepLatest(n: number): Promise<void> {
+    const uid = this.authUser.currentUid;
+    if (!uid) return;
+
     const ref = collection(this.fs, 'ideas');
-    const q = query(ref, orderBy('createdAt', 'desc'), limit(200));
+    const q = query(ref, where('uid', '==', uid), orderBy('createdAt', 'desc'), limit(200));
     const snap = await getDocs(q as any);
     const toDelete = snap.docs.slice(n);
     if (!toDelete.length) return;

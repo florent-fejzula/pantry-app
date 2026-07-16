@@ -1,20 +1,51 @@
-<nav class="top-nav">
-  <div class="top-nav__inner">
-    <a
-      routerLink=""
-      routerLinkActive="active"
-      [routerLinkActiveOptions]="{ exact: true }"
-      class="top-nav__link"
-    >
-      Pantry
-    </a>
+<ng-container *ngIf="uid$ | async as uid; else signedOut">
+  <nav class="top-nav">
+    <div class="top-nav__inner">
+      <a
+        routerLink=""
+        routerLinkActive="active"
+        [routerLinkActiveOptions]="{ exact: true }"
+        class="top-nav__link"
+      >
+        Pantry
+      </a>
 
-    <a routerLink="ideas" routerLinkActive="active" class="top-nav__link">
-      Ideas
-    </a>
+      <a routerLink="ideas" routerLinkActive="active" class="top-nav__link">
+        Ideas
+      </a>
+
+      <button
+        type="button"
+        class="sign-out-btn"
+        title="Sign out"
+        (click)="signOut()"
+      >
+        Sign out
+      </button>
+    </div>
+  </nav>
+
+  <main class="app-shell">
+    <router-outlet></router-outlet>
+  </main>
+</ng-container>
+
+<ng-template #signedOut>
+  <div class="signin-shell">
+    <div class="signin-card">
+      <h1 class="signin-title">🥗 Pantry</h1>
+      <p class="signin-subtitle">
+        Sign in to see your pantry and recipe ideas.
+      </p>
+
+      <button
+        type="button"
+        class="signin-btn"
+        [disabled]="signingIn()"
+        (click)="signInWithGoogle()"
+      >
+        {{ signingIn() ? "Signing in…" : "Sign in with Google" }}
+      </button>
+    </div>
   </div>
-</nav>
-
-<main class="app-shell">
-  <router-outlet></router-outlet>
-</main>
+</ng-template>

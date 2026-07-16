@@ -1,5 +1,6 @@
 export interface IdeaIngredient {
   id: string;
+  uid: string;
   name: string;
   canonicalIngredientId?: string;
   requiredQuantity?: number;

@@ -3,6 +3,7 @@ import type { Timestamp, FieldValue } from 'firebase/firestore';
 
 export interface PantryItem {
   id: string;
+  uid: string;
   name: string;
   canonicalIngredientId?: string;
   quantity?: number;

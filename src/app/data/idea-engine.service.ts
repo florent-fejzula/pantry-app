@@ -26,7 +26,7 @@ type RawIdea = {
 
 type ScoredIdeaBundle = {
   idea: Idea;
-  ingredients: IdeaIngredient[];
+  ingredients: Omit<IdeaIngredient, 'uid'>[];
 };
 
 @Injectable({ providedIn: 'root' })
@@ -401,7 +401,7 @@ export class IdeaEngineService {
     const bundles: ScoredIdeaBundle[] = [];
 
     for (const r of raw) {
-      const used: IdeaIngredient[] = [];
+      const used: Omit<IdeaIngredient, 'uid'>[] = [];
       let missing = 0;
       let coverage = 0;
 
@@ -409,7 +409,7 @@ export class IdeaEngineService {
         const normalizedIng = this.normalizeIngredientName(ingName);
         const has = this.matchesPantry(normalizedIng, pantryExact);
 
-        const ing: IdeaIngredient = {
+        const ing: Omit<IdeaIngredient, 'uid'> = {
           id:
             normalizedIng.replace(/\W+/g, '_').slice(0, 40) ||
             Math.random().toString(36).slice(2),

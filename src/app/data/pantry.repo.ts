@@ -17,24 +17,42 @@ import {
 } from '@angular/fire/firestore';
 import { Timestamp, serverTimestamp, getDocs } from 'firebase/firestore';
 import { Observable, of } from 'rxjs';
+import { switchMap } from 'rxjs/operators';
 import { PantryItem } from '../models/pantry-item.model';
+import { AuthUserService } from './auth-user.service';
 
 @Injectable({ providedIn: 'root' })
 export class PantryRepo {
   private fs = inject(Firestore);
+  private authUser = inject(AuthUserService);
 
-  /** Stream all pantry items (alpha by name) */
+  /** Stream the signed-in user's pantry items (alpha by name) */
   list$(): Observable<PantryItem[]> {
-    const ref = collection(this.fs, 'pantryItems');
-    const q = query(ref, orderBy('name'));
-    return collectionData(q, { idField: 'id' }) as Observable<PantryItem[]>;
+    return this.authUser.uid$.pipe(
+      switchMap((uid) => {
+        if (!uid) return of([]);
+        const ref = collection(this.fs, 'pantryItems');
+        const q = query(ref, where('uid', '==', uid), orderBy('name'));
+        return collectionData(q, { idField: 'id' }) as Observable<PantryItem[]>;
+      }),
+    );
   }
 
-  /** Optional filtered stream (by tag) */
+  /** Optional filtered stream (by tag), scoped to the signed-in user */
   listByTag$(tag: string): Observable<PantryItem[]> {
-    const ref = collection(this.fs, 'pantryItems');
-    const q = query(ref, where('tags', 'array-contains', tag), orderBy('name'));
-    return collectionData(q, { idField: 'id' }) as Observable<PantryItem[]>;
+    return this.authUser.uid$.pipe(
+      switchMap((uid) => {
+        if (!uid) return of([]);
+        const ref = collection(this.fs, 'pantryItems');
+        const q = query(
+          ref,
+          where('uid', '==', uid),
+          where('tags', 'array-contains', tag),
+          orderBy('name'),
+        );
+        return collectionData(q, { idField: 'id' }) as Observable<PantryItem[]>;
+      }),
+    );
   }
 
   get$(itemId: string): Observable<PantryItem | undefined> {
@@ -42,9 +60,16 @@ export class PantryRepo {
     return docData(d, { idField: 'id' }) as Observable<PantryItem | undefined>;
   }
 
-  async add(data: Omit<PantryItem, 'id' | 'updatedAt'>): Promise<string> {
+  async add(data: Omit<PantryItem, 'id' | 'uid' | 'updatedAt'>): Promise<string> {
+    const uid = this.authUser.currentUid;
+    if (!uid) throw new Error('You must be signed in to add pantry items.');
+
     const ref = collection(this.fs, 'pantryItems');
-    const res = await addDoc(ref, { ...data, updatedAt: serverTimestamp() as unknown as Timestamp });
+    const res = await addDoc(ref, {
+      ...data,
+      uid,
+      updatedAt: serverTimestamp() as unknown as Timestamp,
+    });
     return res.id;
   }
 
@@ -71,10 +96,18 @@ export class PantryRepo {
     await batch.commit();
   }
 
-  /** Keep only latest N items by updatedAt (utility; optional) */
+  /** Keep only latest N of the signed-in user's items by updatedAt (utility; optional) */
   async keepLatest(n: number): Promise<void> {
+    const uid = this.authUser.currentUid;
+    if (!uid) return;
+
     const ref = collection(this.fs, 'pantryItems');
-    const q = query(ref, orderBy('updatedAt', 'desc'), limit(200));
+    const q = query(
+      ref,
+      where('uid', '==', uid),
+      orderBy('updatedAt', 'desc'),
+      limit(200),
+    );
     const snap = await getDocs(q as any);
     const toDelete = snap.docs.slice(n);
     if (!toDelete.length) return;

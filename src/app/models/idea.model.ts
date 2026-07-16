@@ -2,6 +2,7 @@ import type { Timestamp, FieldValue } from 'firebase/firestore';
 
 export interface Idea {
   id: string;
+  uid: string;
   prompt: string;
   title: string;
   description?: string;
