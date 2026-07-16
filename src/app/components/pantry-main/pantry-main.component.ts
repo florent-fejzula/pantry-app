@@ -1,7 +1,7 @@
 import { Component, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormControl } from '@angular/forms';
-import { combineLatest, map, startWith } from 'rxjs';
+import { combineLatest, map, startWith, firstValueFrom } from 'rxjs';
 
 import { PantryItem } from '../../models/pantry-item.model';
 import { PantryRepo } from '../../data/pantry.repo';
@@ -43,6 +43,8 @@ export class PantryMainComponent {
 
   selectedCategory = signal<Category>(DEFAULT_CATEGORY);
   searchOpen = signal(false);
+
+  copied = signal(false);
 
   editingId = signal<string | null>(null);
   editName = new FormControl<string>('', { nonNullable: true });
@@ -150,6 +152,20 @@ export class PantryMainComponent {
 
   async remove(itemId: string) {
     await this.pantry.remove(itemId);
+  }
+
+  async copyAllItems() {
+    const items = await firstValueFrom(this.items$);
+
+    const text = items
+      .map((i) => i.name?.trim())
+      .filter(Boolean)
+      .join('\n');
+
+    await navigator.clipboard.writeText(text);
+
+    this.copied.set(true);
+    setTimeout(() => this.copied.set(false), 1000);
   }
 
   trackById = (_: number, it: PantryItem) => it.id;

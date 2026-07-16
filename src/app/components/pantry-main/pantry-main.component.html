@@ -3,6 +3,15 @@
     <div class="title-row">
       <h2 class="title">🥗 Pantry</h2>
 
+      <button
+        type="button"
+        class="copy-btn"
+        title="Copy all items"
+        (click)="copyAllItems()"
+      >
+        {{ copied() ? "✅ Copied!" : "📋" }}
+      </button>
+
       <div class="header-search" [class.open]="searchOpen()">
         <input
           type="text"
