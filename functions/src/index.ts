@@ -1,6 +1,9 @@
 import { onRequest } from 'firebase-functions/v2/https';
 import { defineSecret } from 'firebase-functions/params';
 import OpenAI from 'openai';
+import * as admin from 'firebase-admin';
+
+admin.initializeApp();
 
 const OPENAI_API_KEY = defineSecret('OPENAI_API_KEY');
 
@@ -33,7 +36,7 @@ export const generateIdeas = onRequest(
   },
   async (req, res) => {
     res.set('Access-Control-Allow-Origin', '*');
-    res.set('Access-Control-Allow-Headers', 'content-type');
+    res.set('Access-Control-Allow-Headers', 'content-type, authorization');
     res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
 
     if (req.method === 'OPTIONS') {
@@ -43,6 +46,21 @@ export const generateIdeas = onRequest(
 
     if (req.method !== 'POST') {
       res.status(405).json({ error: 'Use POST' });
+      return;
+    }
+
+    const authHeader = req.get('Authorization') || '';
+    const tokenMatch = authHeader.match(/^Bearer (.+)$/);
+
+    if (!tokenMatch) {
+      res.status(401).json({ error: 'Missing Authorization header' });
+      return;
+    }
+
+    try {
+      await admin.auth().verifyIdToken(tokenMatch[1]);
+    } catch {
+      res.status(401).json({ error: 'Invalid or expired token' });
       return;
     }
 

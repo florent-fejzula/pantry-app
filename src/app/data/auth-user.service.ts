@@ -29,4 +29,9 @@ export class AuthUserService {
   async signOut(): Promise<void> {
     await signOut(this.auth);
   }
+
+  /** ID token for authenticating calls to our own Cloud Functions. */
+  async getIdToken(): Promise<string | null> {
+    return (await this.auth.currentUser?.getIdToken()) ?? null;
+  }
 }

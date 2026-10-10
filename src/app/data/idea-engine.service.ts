@@ -1,9 +1,10 @@
 import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
 
 import { PantryRepo } from './pantry.repo';
 import { IdeasRepo } from './ideas.repo';
+import { AuthUserService } from './auth-user.service';
 import { Idea } from '../models/idea.model';
 import { IdeaIngredient } from '../models/idea-ingredient.model';
 import { environment } from '../../environments/environment';
@@ -34,6 +35,7 @@ export class IdeaEngineService {
   private pantry = inject(PantryRepo);
   private ideas = inject(IdeasRepo);
   private http = inject(HttpClient);
+  private authUser = inject(AuthUserService);
 
   async generateAndSave(params: GenerateParams): Promise<string[]> {
     const pantryItems = await firstValueFrom(this.pantry.list$());
@@ -117,7 +119,14 @@ export class IdeaEngineService {
     maxIdeas: number,
   ): Promise<RawIdea[]> {
     try {
-      const res = await firstValueFrom(this.http.post<any>(endpoint, payload));
+      const token = await this.authUser.getIdToken();
+      const headers = token
+        ? new HttpHeaders({ Authorization: `Bearer ${token}` })
+        : undefined;
+
+      const res = await firstValueFrom(
+        this.http.post<any>(endpoint, payload, { headers }),
+      );
       const arr = Array.isArray(res) ? res : (res?.ideas ?? []);
 
       return arr
